@@ -4,72 +4,74 @@ from flask import Flask, request, jsonify, render_template
 
 app = Flask(__name__)
 
-# Load the trained pipeline (Scaler + Model inside)
-# Make sure regmodel.pkl is in the same folder as this app.py
+# Load model and scaler
 regmodel = pickle.load(open('regmodel.pkl', 'rb'))
+scaler = pickle.load(open('scaling.pkl', 'rb'))
+
+# Column order exactly as in your notebook (all lowercase)
+FEATURES = ['crim', 'zn', 'indus', 'chas', 'nox',
+            'rm', 'age', 'dis', 'rad', 'tax',
+            'ptratio', 'b', 'lstat']
 
 
 @app.route('/')
 def home():
-    # home.html should have a form that posts to /predict (for browser use)
     return render_template('home.html')
 
 
-# ---------- API route: for Postman / JS / external use ----------
-@app.route('/predict_api', methods=['POST'])
-def predict_api():
-    """
-    Expects JSON like:
-    {
-      "data": {
-        "feature1": 0.1,
-        "feature2": 3.5,
-        ...
-      }
-    }
-    """
-    content = request.get_json()
-
-    # Support both {"data": {...}} and just {...}
-    if isinstance(content, dict) and 'data' in content:
-        data = content['data']
-    else:
-        data = content
-
-    # Convert to numpy array
-    try:
-        values = np.array(list(data.values()), dtype=float).reshape(1, -1)
-    except Exception as e:
-        return jsonify({"error": f"Invalid input format: {str(e)}"}), 400
-
-    # Pipeline handles scaling + prediction inside
-    prediction = regmodel.predict(values)[0]
-
-    return jsonify({"prediction": float(prediction)})
-
-
-# ---------- Form route: for browser form submission ----------
 @app.route('/predict', methods=['POST'])
 def predict():
-    """
-    For HTML <form> that sends form-data (from home.html)
-    """
     try:
-        # request.form.values() -> all inputs from the form in order
-        values = [float(x) for x in request.form.values()]
-        final_input = np.array(values).reshape(1, -1)
+        values = []
+        missing = []
 
-        prediction = regmodel.predict(final_input)[0]
+        # Safely read all fields
+        for f in FEATURES:
+            v = request.form.get(f)   # returns None instead of raising error
+            if v is None or v.strip() == "":
+                missing.append(f)
+            else:
+                values.append(float(v))
+
+        # If any field missing, show message instead of 400 error
+        if missing:
+            return render_template(
+                'home.html',
+                prediction_text=f"Please fill all fields. Missing: {', '.join(missing)}"
+            )
+
+        # Convert to numpy, scale, predict
+        arr = np.array(values).reshape(1, -1)
+        transformed = scaler.transform(arr)
+        prediction = regmodel.predict(transformed)[0]
 
         return render_template(
             'home.html',
-            prediction_text=f'Predicted value: {prediction:.2f}'
+            prediction_text=f'The House price prediction is {prediction:.2f}'
         )
+
     except Exception as e:
         return render_template(
             'home.html',
             prediction_text=f'Error: {str(e)}'
         )
+
+
+# Optional JSON API
+@app.route('/predict_api', methods=['POST'])
+def predict_api():
+    data = request.get_json()
+    if data is None:
+        return jsonify({'error': 'No JSON received'}), 400
+
+    try:
+        values = [float(data[f]) for f in FEATURES]
+        arr = np.array(values).reshape(1, -1)
+        transformed = scaler.transform(arr)
+        prediction = regmodel.predict(transformed)[0]
+        return jsonify({'prediction': float(prediction)})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
 
 
 if __name__ == "__main__":

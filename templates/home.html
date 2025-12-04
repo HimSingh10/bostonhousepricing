@@ -1,3 +1,37 @@
-<h1>
-Hello World
-</h1>
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>ML API</title>
+</head>
+
+<body>
+  <div class="login">
+    <h1>Boston House Price Prediction</h1>
+
+    <form action="{{ url_for('predict') }}" method="post">
+      <input type="text" name="crim" placeholder="crim" required="required" /><br>
+      <input type="text" name="zn" placeholder="zn" required="required" /><br>
+      <input type="text" name="indus" placeholder="indus" required="required" /><br>
+      <input type="text" name="chas" placeholder="chas" required="required" /><br>
+      <input type="text" name="nox" placeholder="nox" required="required" /><br>
+      <input type="text" name="rm" placeholder="rm" required="required" /><br>
+      <input type="text" name="age" placeholder="age" required="required" /><br>
+      <input type="text" name="dis" placeholder="dis" required="required" /><br>
+      <input type="text" name="rad" placeholder="rad" required="required" /><br>
+      <input type="text" name="tax" placeholder="tax" required="required" /><br>
+      <input type="text" name="ptratio" placeholder="ptratio" required="required" /><br>
+      <input type="text" name="b" placeholder="b" required="required" /><br>
+      <input type="text" name="lstat" placeholder="lstat" required="required" /><br>
+
+      <button type="submit">Predict</button>
+    </form>
+
+    <br><br>
+
+    {% if prediction_text %}
+      <p>{{ prediction_text }}</p>
+    {% endif %}
+  </div>
+</body>
+</html>
